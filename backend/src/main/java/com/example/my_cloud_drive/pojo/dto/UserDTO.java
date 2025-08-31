@@ -1,10 +1,9 @@
 package com.example.my_cloud_drive.pojo.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class UserLoginDTO {
+public class UserDTO {
 
     private String username;
 
@@ -13,4 +12,10 @@ public class UserLoginDTO {
     private String email;
 
     private String code;
+
+    private String phone;
+
+    private String avatar;
+
+    private String nickname;
 }

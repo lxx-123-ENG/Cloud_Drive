@@ -1,15 +1,12 @@
 package com.example.my_cloud_drive.service.Impl;
 
-import com.example.my_cloud_drive.component.MailMsg;
 import com.example.my_cloud_drive.exception.BusinessException;
-import com.example.my_cloud_drive.pojo.dto.UserLoginDTO;
-import com.example.my_cloud_drive.pojo.dto.UserRegisterDTO;
+import com.example.my_cloud_drive.pojo.dto.UserDTO;
 import com.example.my_cloud_drive.pojo.entity.LoginLog;
 import com.example.my_cloud_drive.pojo.entity.User;
 import com.example.my_cloud_drive.pojo.vo.UserResponseVO;
 import com.example.my_cloud_drive.repository.LoginLogRepository;
 import com.example.my_cloud_drive.repository.UserRepository;
-import com.example.my_cloud_drive.result.Result;
 import com.example.my_cloud_drive.service.UserService;
 import com.example.my_cloud_drive.service.VerificationService;
 import jakarta.annotation.Resource;
@@ -43,26 +40,26 @@ public class UserServiceImpl implements UserService {
     private VerificationService verificationService;
 
     @Override
-    public boolean register(UserRegisterDTO userRegisterDTO) {
+    public boolean register(UserDTO userDTO) {
 
         // 1. 校验参数
-        if (userRegisterDTO == null) {
+        if (userDTO == null) {
             throw new BusinessException("用户注册参数不能为空");
         }
 
         // 2. 校验用户名是否重复，校验邮箱是否重复
-        if (userRepository.existsByUsername(userRegisterDTO.getUsername())) {
+        if (userRepository.existsByUsername(userDTO.getUsername())) {
             throw new BusinessException("用户名已存在");
         }
-        if (userRepository.existsByEmail(userRegisterDTO.getEmail())) {
+        if (userRepository.existsByEmail(userDTO.getEmail())) {
             throw new BusinessException("邮箱已存在");
         }
 
         // 3. 密码加密
-        String encodedPassword = passwordEncoder.encode(userRegisterDTO.getPassword());
+        String encodedPassword = passwordEncoder.encode(userDTO.getPassword());
         // 4. 插入数据库
         User user = new User();
-        BeanUtils.copyProperties(userRegisterDTO, user);
+        BeanUtils.copyProperties(userDTO, user);
         user.setPassword(encodedPassword);
         user.setRegisterTime(LocalDateTime.now());
         try {
@@ -75,18 +72,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseVO login(UserLoginDTO userLoginDTO, HttpServletRequest request) {
+    public UserResponseVO login(UserDTO userDTO, HttpServletRequest request) {
         // 1. 校验参数
-        if (userLoginDTO == null) {
+        if (userDTO == null) {
             throw new BusinessException("用户登录参数不能为空");
         }
         // 2. 校验用户名是否存在
-        Optional<User> user = userRepository.findByUsername(userLoginDTO.getUsername());
+        Optional<User> user = userRepository.findByUsername(userDTO.getUsername());
         if (user.isEmpty()) {
             throw new BusinessException("用户名不存在");
         }
         // 3. 检验该用户名对应的密码与登录时输入的密码是否一致
-        boolean match=passwordEncoder.matches(userLoginDTO.getPassword(),user.get().getPassword());
+        boolean match=passwordEncoder.matches(userDTO.getPassword(),user.get().getPassword());
         if(!match){
             throw new BusinessException("用户名或密码错误");
         }
@@ -133,20 +130,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseVO loginByEmail(UserLoginDTO userLoginDTO, HttpServletRequest request) {
-        String code = userLoginDTO.getCode();
+    public UserResponseVO loginByEmail(UserDTO userDTO, HttpServletRequest request) {
+        String code = userDTO.getCode();
         if (code == null) {
             throw new BusinessException("验证码不存在");
         }
-        boolean verify = verificationService.verifyCode(userLoginDTO.getEmail(), code);
+        boolean verify = verificationService.verifyCode(userDTO.getEmail(), code);
         if (!verify) {
             throw new BusinessException("验证码错误");
         }
 
         //删去对应的redis的值
-        redisTemplate.delete(userLoginDTO.getEmail());
+        redisTemplate.delete(userDTO.getEmail());
 
-        Optional<User> user = userRepository.findByEmail(userLoginDTO.getEmail());
+        Optional<User> user = userRepository.findByEmail(userDTO.getEmail());
 
         // 4. 登录成功，更新用户信息
         user.get().setLastLoginTime(LocalDateTime.now());
@@ -167,7 +164,7 @@ public class UserServiceImpl implements UserService {
             eu.bitwalker.useragentutils.UserAgent agent =
                     eu.bitwalker.useragentutils.UserAgent.parseUserAgentString(ua);
             log.setBrowser(agent.getBrowser().getName());
-            log.setOs(agent.getOperatingSystem().getName());
+             log.setOs(agent.getOperatingSystem().getName());
             log.setDevice(agent.getOperatingSystem().getDeviceType().getName());
         }else {
             log.setBrowser("未知");
@@ -182,5 +179,16 @@ public class UserServiceImpl implements UserService {
         return userResponseVO;
     }
 
-
+    @Override
+    public void updateInfo(UserDTO userDTO) {
+        String password = userDTO.getPassword();
+        String encodedPassword = passwordEncoder.encode(password);
+        userDTO.setPassword(encodedPassword);
+        Optional<User> user = userRepository.findByUsername(userDTO.getUsername());
+        if (user.isEmpty()) {
+            throw new BusinessException("用户不存在");
+        }
+        BeanUtils.copyProperties(userDTO,user.get());
+        userRepository.save(user.get());
+    }
 }

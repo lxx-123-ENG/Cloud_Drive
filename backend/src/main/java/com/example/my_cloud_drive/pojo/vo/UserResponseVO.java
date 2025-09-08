@@ -15,5 +15,4 @@ public class UserResponseVO {
     private Long usedStorage; // 已用存储空间
     private LocalDateTime registerTime; // 注册时间
     private LocalDateTime lastLoginTime; // 最后登录时间
-    private String token; // 登录成功后返回的Token
 }

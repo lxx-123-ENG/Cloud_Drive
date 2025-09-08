@@ -54,3 +54,29 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+sa-token:
+  # 1. 基础配置（驼峰命名，适配 Spring Boot 3.x）
+  tokenName: Authorization       # 替代旧的 token-name（Token 存储的 key）
+  timeout: 7200                  # 保持不变（过期时间，单位：秒）
+  tokenPrefix: Bearer            # 替代旧的 token-prefix（请求头前缀）
+  isConcurrent: true             # 替代旧的 is-concurrent（允许多端登录）
+  autoRenew: true                # 替代旧的 auto-renew（自动刷新 Token）
+  storeType: redis              # 替代旧的 store-type（Token 存储方式，核心！）
+  isLog: true                    # 替代旧的 is-log（是否输出日志）
+
+  # 2. 不拦截的接口（替代旧的 exclude-path-patterns，注意命名和格式）
+  excludePathPatterns:
+    - /user/user/login
+    - /user/user/register
+    - /user/user/loginByEmail
+
+  # 3. 单独 Redis 配置（若保留，同样用驼峰命名）
+  alone-redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 1
+    timeout: 3000ms
+
+

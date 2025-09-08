@@ -3,6 +3,7 @@ package com.example.my_cloud_drive.controller;
 import com.example.my_cloud_drive.exception.BusinessException;
 import com.example.my_cloud_drive.pojo.dto.UserDTO;
 
+import com.example.my_cloud_drive.pojo.vo.UserLoginVO;
 import com.example.my_cloud_drive.pojo.vo.UserResponseVO;
 import com.example.my_cloud_drive.result.Result;
 import com.example.my_cloud_drive.service.UserService;
@@ -38,12 +39,12 @@ public class UserController {
 
     @Operation(summary = "用户登录")
     @PostMapping("/login")
-    public Result<UserResponseVO> login(@RequestBody UserDTO userDTO, HttpServletRequest request) {
+    public Result<UserLoginVO> login(@RequestBody UserDTO userDTO, HttpServletRequest request) {
         log.info("用户登录：{}", userDTO);
         // 调用service层登录用户
         try {
-            UserResponseVO userResponseVO = userService.login(userDTO,request);
-            return Result.success("登录成功",userResponseVO);
+            UserLoginVO userLoginVO = userService.login(userDTO,request);
+            return Result.success("登录成功",userLoginVO);
         } catch (BusinessException e) {
             return Result.error(e.getMessage());
         }
@@ -51,12 +52,12 @@ public class UserController {
 
     @Operation(summary = "邮箱登录")
     @PostMapping("/loginByEmail")
-    public Result<UserResponseVO> loginByEmail(@RequestBody UserDTO userDTO, HttpServletRequest request) {
+    public Result<UserLoginVO> loginByEmail(@RequestBody UserDTO userDTO, HttpServletRequest request) {
         log.info("邮箱登录：{}", userDTO);
         // 调用service层登录用户
         try {
-            UserResponseVO userResponseVO = userService.loginByEmail(userDTO,request);
-            return Result.success("登录成功",userResponseVO);
+            UserLoginVO userLoginVO = userService.loginByEmail(userDTO,request);
+            return Result.success("登录成功",userLoginVO);
         } catch (BusinessException e) {
             return Result.error(e.getMessage());
         }

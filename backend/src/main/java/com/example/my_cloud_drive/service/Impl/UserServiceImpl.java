@@ -1,9 +1,11 @@
 package com.example.my_cloud_drive.service.Impl;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.example.my_cloud_drive.exception.BusinessException;
 import com.example.my_cloud_drive.pojo.dto.UserDTO;
 import com.example.my_cloud_drive.pojo.entity.LoginLog;
 import com.example.my_cloud_drive.pojo.entity.User;
+import com.example.my_cloud_drive.pojo.vo.UserLoginVO;
 import com.example.my_cloud_drive.pojo.vo.UserResponseVO;
 import com.example.my_cloud_drive.repository.LoginLogRepository;
 import com.example.my_cloud_drive.repository.UserRepository;
@@ -12,6 +14,7 @@ import com.example.my_cloud_drive.service.VerificationService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,9 @@ public class UserServiceImpl implements UserService {
     @Resource
     private VerificationService verificationService;
 
+    @Value("${sa-token.timeout}")
+    private long tokenTimeout;
+
     @Override
     public boolean register(UserDTO userDTO) {
 
@@ -55,9 +61,24 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("邮箱已存在");
         }
 
-        // 3. 密码加密
+        // 3. 验证码校验
+        String code = userDTO.getCode();
+
+        if (code == null) {
+            throw new BusinessException("验证码不存在");
+        }
+        boolean verify = verificationService.verifyCode(userDTO.getEmail(), code);
+        if (!verify) {
+            throw new BusinessException("验证码错误");
+        }
+
+        //删去对应的redis的值
+        redisTemplate.delete(userDTO.getEmail());
+
+        // 4. 密码加密
         String encodedPassword = passwordEncoder.encode(userDTO.getPassword());
-        // 4. 插入数据库
+
+        // 5. 插入数据库
         User user = new User();
         BeanUtils.copyProperties(userDTO, user);
         user.setPassword(encodedPassword);
@@ -72,7 +93,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponseVO login(UserDTO userDTO, HttpServletRequest request) {
+    public UserLoginVO login(UserDTO userDTO, HttpServletRequest request) {
         // 1. 校验参数
         if (userDTO == null) {
             throw new BusinessException("用户登录参数不能为空");
@@ -93,20 +114,26 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("账号已被禁用，请联系管理员",403);
         }
 
-        // 5. 登录成功，更新用户信息
+        // 5. ------------ Sa-Token 核心：执行登录 ------------
+        // 用用户ID作为登录标识（建议用唯一ID，不要用用户名）
+        StpUtil.login(user.get().getId());
+        // 获取生成的 Token（Sa-Token 自动生成，无需手动处理）
+        String token = StpUtil.getTokenValue();
+
+        // 6. 登录成功，更新用户信息
         user.get().setLastLoginTime(LocalDateTime.now());
         userRepository.save(user.get());
 
-        // 6. 组装登录日志
+        // 7. 组装登录日志
         LoginLog log = new LoginLog();
         log.setUserId(user.get().getId());
         log.setLoginTime(LocalDateTime.now());
 
 
-        // 6-1 IP 地址
+        // 7-1 IP 地址
         log.setIp(request.getRemoteAddr());
 
-        // 6-2 浏览器、操作系统、设备
+        // 7-2 浏览器、操作系统、设备
         String ua = request.getHeader("User-Agent");
         if (StringUtils.hasText(ua)) {
             eu.bitwalker.useragentutils.UserAgent agent =
@@ -122,15 +149,17 @@ public class UserServiceImpl implements UserService {
 
         loginLogRepository.save(log);
 
-        UserResponseVO userResponseVO=new UserResponseVO();
-        BeanUtils.copyProperties(user.get(),userResponseVO);
-        return userResponseVO;
+        UserLoginVO userLoginVO=new UserLoginVO();
+        BeanUtils.copyProperties(user.get(),userLoginVO);
+        userLoginVO.setToken(token);
+        userLoginVO.setTokenExpireTime(tokenTimeout);
+        return userLoginVO;
     }
 
 
     @Override
     @Transactional
-    public UserResponseVO loginByEmail(UserDTO userDTO, HttpServletRequest request) {
+    public UserLoginVO loginByEmail(UserDTO userDTO, HttpServletRequest request) {
         String code = userDTO.getCode();
         if (code == null) {
             throw new BusinessException("验证码不存在");
@@ -145,7 +174,10 @@ public class UserServiceImpl implements UserService {
 
         Optional<User> user = userRepository.findByEmail(userDTO.getEmail());
 
-        // 4. 登录成功，更新用户信息
+        StpUtil.login(user.get().getId());
+        String token = StpUtil.getTokenValue();
+
+        // 登录成功，更新用户信息
         user.get().setLastLoginTime(LocalDateTime.now());
         userRepository.save(user.get());
 
@@ -174,9 +206,11 @@ public class UserServiceImpl implements UserService {
 
         loginLogRepository.save(log);
 
-        UserResponseVO userResponseVO=new UserResponseVO();
-        BeanUtils.copyProperties(user.get(),userResponseVO);
-        return userResponseVO;
+        UserLoginVO userLoginVO=new UserLoginVO();
+        BeanUtils.copyProperties(user.get(),userLoginVO);
+        userLoginVO.setToken(token);
+        userLoginVO.setTokenExpireTime(tokenTimeout);
+        return userLoginVO;
     }
 
     @Override

@@ -29,7 +29,7 @@ public class MailMsg {
             MimeMessage mimeMessage = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             String code = codeProudct.createCode();
-            helper.setText("您的验证码为：" + code + "，5分钟内有效");
+            helper.setText("您的验证码为：   " + code + "   ，5分钟内有效");
             helper.setSubject("Cloud_Drive----验证码");
             helper.setFrom(fromEmail);
             helper.setTo(email);

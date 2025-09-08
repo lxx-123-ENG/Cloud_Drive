@@ -15,12 +15,6 @@ public class Result<T> implements Serializable {
 
     private T data;//业务数据
 
-    private LocalDateTime timestamp;//响应时间
-
-    private Result() {
-        this.timestamp = LocalDateTime.now();//类内使用
-    }
-
     //成功（无业务数据）
     public static <T> Result<T> success() {
         Result<T> result = new Result<>();
